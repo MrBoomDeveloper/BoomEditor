@@ -46,7 +46,7 @@ fun ToolButton(
             )
 
             Text(
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelSmall,
                 text = title,
             )
         }

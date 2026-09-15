@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomAppBar
@@ -33,11 +35,13 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,15 +56,27 @@ import com.mrboomdev.boomeditor.R
 import com.mrboomdev.boomeditor.canvas.layer.Layer
 import com.mrboomdev.boomeditor.ui.components.PillShapedTabBar
 import com.mrboomdev.boomeditor.ui.components.ToolButton
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppScreen(
     appState: AppState,
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    val pagerState = rememberPagerState { 3 }
     var selectedLayer by remember { mutableStateOf<Layer?>(null) }
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    var zoom by rememberSaveable { mutableFloatStateOf(1f) }
+    
+    val tabScrollStates = Array(3) {
+        rememberScrollState()
+    }
+
+    LaunchedEffect(pagerState.currentPage) {
+        coroutineScope.launch { 
+            tabScrollStates[pagerState.currentPage].scrollTo(0)   
+        }
+    }
     
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -322,55 +338,60 @@ fun AppScreen(
                     .padding(WindowInsets.navigationBars.asPaddingValues()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ToolButton(
-                        icon = painterResource(R.drawable.crop_24px),
-                        title = "Crop",
-                        onClick = {}
-                    )
+                HorizontalPager(
+                    state = pagerState,
+                    userScrollEnabled = false
+                ) { currentTab ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(tabScrollStates[currentTab])
+                            .padding(horizontal = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ToolButton(
+                            icon = painterResource(R.drawable.crop_24px),
+                            title = "Crop",
+                            onClick = {}
+                        )
 
-                    ToolButton(
-                        icon = painterResource(R.drawable.recenter_24px),
-                        title = "Position",
-                        onClick = {}
-                    )
+                        ToolButton(
+                            icon = painterResource(R.drawable.recenter_24px),
+                            title = "Position",
+                            onClick = {}
+                        )
 
-                    ToolButton(
-                        icon = painterResource(R.drawable.cached_24px),
-                        title = "Rotate",
-                        onClick = {}
-                    )
+                        ToolButton(
+                            icon = painterResource(R.drawable.cached_24px),
+                            title = "Rotate",
+                            onClick = {}
+                        )
 
-                    ToolButton(
-                        icon = painterResource(R.drawable.arrows_outward_24px),
-                        title = "Scale",
-                        onClick = {}
-                    )
+                        ToolButton(
+                            icon = painterResource(R.drawable.arrows_outward_24px),
+                            title = "Scale",
+                            onClick = {}
+                        )
 
-                    ToolButton(
-                        icon = painterResource(R.drawable.colors_24px),
-                        title = "Color",
-                        onClick = {}
-                    )
+                        ToolButton(
+                            icon = painterResource(R.drawable.colors_24px),
+                            title = "Color",
+                            onClick = {}
+                        )
 
-                    ToolButton(
-                        icon = painterResource(R.drawable.texture_24px),
-                        title = "Texture",
-                        onClick = {}
-                    )
+                        ToolButton(
+                            icon = painterResource(R.drawable.texture_24px),
+                            title = "Texture",
+                            onClick = {}
+                        )
 
-                    ToolButton(
-                        icon = painterResource(R.drawable.opacity_24px),
-                        title = "Opacity",
-                        onClick = {}
-                    )
+                        ToolButton(
+                            icon = painterResource(R.drawable.opacity_24px),
+                            title = "Opacity",
+                            onClick = {}
+                        )
+                    }
                 }
 
                 PillShapedTabBar(
@@ -378,8 +399,14 @@ fun AppScreen(
                         .height(32.dp)
                         .padding(horizontal = 8.dp),
                     containerColor = Color.Transparent,
-                    selectedIndex = selectedTab,
-                    onTabSelected = { selectedTab = it },
+                    selectedIndex = pagerState.currentPage,
+                    
+                    onTabSelected = { index ->
+                        coroutineScope.launch { 
+                            pagerState.animateScrollToPage(index)
+                        }
+                    },
+                    
                     items = remember { 
                         listOf(
                             "Transform",
