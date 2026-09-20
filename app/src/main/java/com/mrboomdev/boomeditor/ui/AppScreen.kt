@@ -1,5 +1,6 @@
 package com.mrboomdev.boomeditor.ui
 
+import android.R.attr.textStyle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -7,16 +8,26 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -29,11 +40,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults.contentPadding
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,9 +66,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowSizeClass
+import androidx.window.core.layout.WindowWidthSizeClass
 import com.mrboomdev.boomeditor.AppState
 import com.mrboomdev.boomeditor.R
 import com.mrboomdev.boomeditor.canvas.layer.Layer
@@ -58,6 +79,7 @@ import com.mrboomdev.boomeditor.ui.components.PillShapedTabBar
 import com.mrboomdev.boomeditor.ui.components.ToolButton
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +87,7 @@ fun AppScreen(
     appState: AppState,
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val windowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass
     val pagerState = rememberPagerState { 3 }
     var selectedLayer by remember { mutableStateOf<Layer?>(null) }
     
@@ -78,451 +101,274 @@ fun AppScreen(
         }
     }
     
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = {},
+    val mainActions = remember { 
+        listOf(
+            MainAction(
+                text = "Add",
+                icon = R.drawable.add_2_24px,
+                dropdown = listOf(
+                    MainAction(
+                        text = "Image",
+                        icon = R.drawable.image_24px
+                    ),
 
-                actions = {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box {
-                            var showOptions by remember { mutableStateOf(false) }
+                    MainAction(
+                        text = "Shape",
+                        icon = R.drawable.circle_24px
+                    ),
 
-                            IconButton(
-                                onClick = {
-                                    showOptions = true
-                                }
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.add_2_24px),
-                                    contentDescription = null
-                                )
-                            }
+                    MainAction(
+                        text = "Draw",
+                        icon = R.drawable.brush_24px
+                    ),
 
-                            DropdownMenu(
-                                modifier = Modifier.widthIn(min = 150.dp),
-                                expanded = showOptions,
-                                onDismissRequest = { showOptions = false },
-                                shape = RoundedCornerShape(32.dp)
-                            ) {
-                                DropdownMenuItem(
-                                    contentPadding = PaddingValues(
-                                        horizontal = 16.dp
-                                    ),
-
-                                    text = {
-                                        Text("Text")
-                                    },
-
-                                    leadingIcon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.format_size_24px),
-                                            contentDescription = null
-                                        )
-                                    },
-
-                                    onClick = {
-
-                                    }
-                                )
-
-                                DropdownMenuItem(
-                                    contentPadding = PaddingValues(
-                                        horizontal = 16.dp
-                                    ),
-
-                                    text = {
-                                        Text("Image")
-                                    },
-
-                                    leadingIcon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.image_24px),
-                                            contentDescription = null
-                                        )
-                                    },
-
-                                    onClick = {
-
-                                    }
-                                )
-
-                                DropdownMenuItem(
-                                    contentPadding = PaddingValues(
-                                        horizontal = 16.dp
-                                    ),
-
-                                    text = {
-                                        Text("Shape")
-                                    },
-
-                                    leadingIcon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.circle_24px),
-                                            contentDescription = null
-                                        )
-                                    },
-
-                                    onClick = {
-
-                                    }
-                                )
-
-                                DropdownMenuItem(
-                                    contentPadding = PaddingValues(
-                                        horizontal = 16.dp
-                                    ),
-
-                                    text = {
-                                        Text("Draw")
-                                    },
-
-                                    leadingIcon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.brush_24px),
-                                            contentDescription = null
-                                        )
-                                    },
-
-                                    onClick = {
-
-                                    }
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = {
-
-                            }
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.grid_3x3_24px),
-                                contentDescription = null
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-
-                            }
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.layers_24px),
-                                contentDescription = null
-                            )
-                        }
-
-                        Box {
-                            var showOptions by remember { mutableStateOf(false) }
-                            
-                            IconButton(
-                                onClick = {
-                                    showOptions = true
-                                }
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.more_vert_24px),
-                                    contentDescription = null
-                                )
-                            }
-
-                            DropdownMenu(
-                                modifier = Modifier.widthIn(min = 150.dp),
-                                expanded = showOptions,
-                                onDismissRequest = { showOptions = false },
-                                shape = RoundedCornerShape(32.dp)
-                            ) {
-                                DropdownMenuItem(
-                                    contentPadding = PaddingValues(
-                                        horizontal = 16.dp
-                                    ),
-                                    
-                                    text = {
-                                        Text("Save project")
-                                    },
-                                    
-                                    leadingIcon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.save_24px),
-                                            contentDescription = null
-                                        )
-                                    },
-
-                                    onClick = {
-
-                                    }
-                                )
-
-                                DropdownMenuItem(
-                                    contentPadding = PaddingValues(
-                                        horizontal = 16.dp
-                                    ),
-                                    
-                                    text = {
-                                        Text("Open project")
-                                    },
-
-                                    leadingIcon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.folder_open_24px),
-                                            contentDescription = null
-                                        )
-                                    },
-
-                                    onClick = {
-
-                                    }
-                                )
-                                
-                                DropdownMenuItem(
-                                    contentPadding = PaddingValues(
-                                        horizontal = 16.dp
-                                    ),
-                                    
-                                    text = {
-                                        Text("Resize canvas")
-                                    },
-
-                                    leadingIcon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.crop_24px),
-                                            contentDescription = null
-                                        )
-                                    },
-                                    
-                                    onClick = {
-                                        
-                                    }
-                                )
-
-                                DropdownMenuItem(
-                                    contentPadding = PaddingValues(
-                                        horizontal = 16.dp
-                                    ),
-                                    
-                                    text = {
-                                        Text("Export")
-                                    },
-
-                                    leadingIcon = {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ios_share_24px),
-                                            contentDescription = null
-                                        )
-                                    },
-
-                                    onClick = {
-
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            )
-        },
-
-        bottomBar = {
-            Column(
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(top = 8.dp, bottom = 4.dp)
-                    .padding(WindowInsets.navigationBars.asPaddingValues()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                HorizontalPager(
-                    state = pagerState,
-                    userScrollEnabled = false
-                ) { currentTab ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(tabScrollStates[currentTab])
-                            .padding(horizontal = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        ToolButton(
-                            icon = painterResource(R.drawable.crop_24px),
-                            title = "Crop",
-                            onClick = {}
-                        )
-
-                        ToolButton(
-                            icon = painterResource(R.drawable.recenter_24px),
-                            title = "Position",
-                            onClick = {}
-                        )
-
-                        ToolButton(
-                            icon = painterResource(R.drawable.cached_24px),
-                            title = "Rotate",
-                            onClick = {}
-                        )
-
-                        ToolButton(
-                            icon = painterResource(R.drawable.arrows_outward_24px),
-                            title = "Scale",
-                            onClick = {}
-                        )
-
-                        ToolButton(
-                            icon = painterResource(R.drawable.colors_24px),
-                            title = "Color",
-                            onClick = {}
-                        )
-
-                        ToolButton(
-                            icon = painterResource(R.drawable.texture_24px),
-                            title = "Texture",
-                            onClick = {}
-                        )
-
-                        ToolButton(
-                            icon = painterResource(R.drawable.opacity_24px),
-                            title = "Opacity",
-                            onClick = {}
-                        )
-                    }
-                }
-
-                PillShapedTabBar(
-                    modifier = Modifier
-                        .height(32.dp)
-                        .padding(horizontal = 8.dp),
-                    containerColor = Color.Transparent,
-                    selectedIndex = pagerState.currentPage,
-                    
-                    onTabSelected = { index ->
-                        coroutineScope.launch { 
-                            pagerState.animateScrollToPage(index)
-                        }
-                    },
-                    
-                    items = remember { 
-                        listOf(
-                            "Transform",
-                            "Edit",
-                            "Filters"
-                        )
-                    }
+                    MainAction(
+                        text = "Text",
+                        icon = R.drawable.format_size_24px
+                    )
                 )
-            }
-        }
-    ) { contentPadding ->
-        Box(
-            modifier = Modifier
-                .background(Color.White)
-                .fillMaxSize()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(contentPadding)
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
+            ),
+
+            MainAction(
+                text = "Grid",
+                icon = R.drawable.grid_3x3_24px
+            ),
+
+            MainAction(
+                text = "Layers",
+                icon = R.drawable.layers_24px
+            ),
+
+            MainAction(
+                text = "More",
+                icon = R.drawable.more_vert_24px
+            )
+        )
+    }
+    
+    val toolActions = remember { 
+        listOf(
+            R.drawable.crop_24px to "Crop",
+            R.drawable.recenter_24px to "Position",
+            R.drawable.cached_24px to "Rotate",
+            R.drawable.arrows_outward_24px to "Scale",
+            R.drawable.colors_24px to "Color",
+            R.drawable.texture_24px to "Texture",
+            R.drawable.opacity_24px to "Opacity"
+        )
+    }
+    
+    Box(Modifier.fillMaxSize()) {
+        Row {
+            if(windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)) {
+                Column(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(32.dp))
-                        .background(Color(0x55000000))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(WindowInsets.safeDrawing.only(
+                            WindowInsetsSides.Left + WindowInsetsSides.Vertical
+                        ).asPaddingValues())
+                        .fillMaxHeight()
                 ) {
-                    IconButton(
-                        enabled = appState.actions.isNotEmpty(),
-                        onClick = {
-
+                    for(action in mainActions) {
+                        TooltipBox(
+                            state = rememberTooltipState(),
+                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Right),
+                            tooltip = {
+                                PlainTooltip {
+                                    Text(action.text)
+                                }
+                            }
+                        ) {
+                            TextButton(
+                                shape = RoundedCornerShape(8.dp),
+                                onClick = {
+                                    if(action.action != null) {
+                                        action.action()
+                                        return@TextButton
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    painter = painterResource(action.icon),
+                                    contentDescription = null
+                                )
+                            }
                         }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.undo_24px),
-                            contentDescription = null
-                        )
-                    }
-
-                    IconButton(
-                        enabled = appState.actions.isNotEmpty(),
-                        onClick = {
-
-                        }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.redo_24px),
-                            contentDescription = null
-                        )
                     }
                 }
+            }
 
-                if(selectedLayer != null) {
+            if(!windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
                     Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(32.dp))
-                            .background(Color(0x55000000))
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Horizontal + WindowInsetsSides.Top
+                            ).asPaddingValues())
+                            .fillMaxWidth()
                     ) {
-                        IconButton(
-                            onClick = {
-
+                        for(action in mainActions) {
+                            Box(Modifier.weight(1f)) {
+                                TooltipBox(
+                                    state = rememberTooltipState(),
+                                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Right),
+                                    tooltip = {
+                                        PlainTooltip {
+                                            Text(action.text)
+                                        }
+                                    }
+                                ) {
+                                    TextButton(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        onClick = {
+                                            if(action.action != null) {
+                                                action.action()
+                                                return@TextButton
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(action.icon),
+                                            contentDescription = null
+                                        )
+                                    }
+                                }
                             }
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.content_copy_24px),
-                                contentDescription = null
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-
-                            }
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.delete_24px),
-                                contentDescription = null
-                            )
                         }
                     }
-                }
 
-                Row(
+                    Column(
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                            ).asPaddingValues())
+                            .fillMaxWidth()
+                    ) {
+                        HorizontalPager(
+                            state = pagerState,
+                            userScrollEnabled = false
+                        ) { currentTab ->
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(
+                                    items = toolActions,
+                                    key = { it.second }
+                                ) { tool ->
+                                    ToolButton(
+                                        icon = painterResource(tool.first),
+                                        title = tool.second,
+                                        onClick = {}
+                                    )
+                                }
+                            }
+                        }
+
+                        PillShapedTabBar(
+                            modifier = Modifier
+                                .height(32.dp)
+                                .padding(horizontal = 8.dp),
+                            containerColor = Color.Transparent,
+                            selectedIndex = pagerState.currentPage,
+
+                            onTabSelected = { index ->
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(index)
+                                }
+                            },
+
+                            items = remember {
+                                listOf(
+                                    "Transform",
+                                    "Edit",
+                                    "Filters"
+                                )
+                            }
+                        )
+                    }
+                }   
+            } else {
+                Box(Modifier.weight(1f)) {}
+            }
+            
+            if(windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)) {
+                Column(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(32.dp))
-                        .background(Color(0x55000000))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(WindowInsets.safeDrawing.only(
+                            WindowInsetsSides.Right + WindowInsetsSides.Vertical
+                        ).asPaddingValues())
+                        .fillMaxHeight()
+                        .width(200.dp)
                 ) {
-                    IconButton(
-                        onClick = {
-
+                    HorizontalPager(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        state = pagerState,
+                        userScrollEnabled = true
+                    ) { currentTab ->
+                        LazyVerticalGrid(
+                            modifier = Modifier.fillMaxHeight(),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            columns = GridCells.Adaptive(48.dp),
+                        ) {
+                            items(
+                                items = toolActions,
+                                key = { it.second }
+                            ) { tool ->
+                                ToolButton(
+                                    icon = painterResource(tool.first),
+                                    title = tool.second,
+                                    onClick = {}
+                                )
+                            }
                         }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.zoom_in_24px),
-                            contentDescription = null
-                        )
                     }
 
-                    IconButton(
-                        onClick = {
+                    PillShapedTabBar(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(28.dp)
+                            .padding(horizontal = 8.dp),
+                        containerColor = Color.Transparent,
+                        selectedIndex = pagerState.currentPage,
+                        textStyle = MaterialTheme.typography.labelSmall,
 
+                        onTabSelected = { index ->
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(index)
+                            }
+                        },
+
+                        items = remember {
+                            listOf(
+                                "Transform",
+                                "Edit",
+                                "Filters"
+                            )
                         }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.zoom_out_24px),
-                            contentDescription = null
-                        )
-                    }
-                }
+                    )
+                }   
             }
         }
     }
 }
 
 @Preview
+@Preview(device = "id:pixel_tablet")
 @Composable
 private fun AppScreenPreview() {
     val appState = remember { AppState() }

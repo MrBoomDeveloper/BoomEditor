@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -54,7 +55,8 @@ fun PillShapedTabBar(
     containerColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     selectedTabColor: Color = MaterialTheme.colorScheme.primary,
     contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    selectedContentColor: Color = MaterialTheme.colorScheme.onPrimary
+    selectedContentColor: Color = MaterialTheme.colorScheme.onPrimary,
+    textStyle: TextStyle = MaterialTheme.typography.labelMedium
 ) {
     BoxWithConstraints(
         modifier = modifier
@@ -110,7 +112,7 @@ fun PillShapedTabBar(
                     Text(
                         text = title,
                         color = textColor,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = textStyle,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
