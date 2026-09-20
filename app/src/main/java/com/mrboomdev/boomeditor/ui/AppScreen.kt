@@ -59,7 +59,6 @@ import com.mrboomdev.boomeditor.EditorState
 import com.mrboomdev.boomeditor.R
 import com.mrboomdev.boomeditor.canvas.EditorCanvas
 import com.mrboomdev.boomeditor.canvas.layer.ImageLayer
-import com.mrboomdev.boomeditor.canvas.layer.Layer
 import com.mrboomdev.boomeditor.ui.components.PillShapedTabBar
 import com.mrboomdev.boomeditor.ui.components.ToolButton
 import io.github.vinceglb.filekit.FileKit
@@ -76,8 +75,6 @@ fun AppScreen(
     val coroutineScope = rememberCoroutineScope()
     val windowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass
     val pagerState = rememberPagerState { 3 }
-    var selectedLayer by remember { mutableStateOf<Layer?>(null) }
-    
     val tabScrollStates = Array(3) {
         rememberScrollState()
     }
