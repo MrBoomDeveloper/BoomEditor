@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 import com.mrboomdev.boomeditor.canvas.layer.Layer
 
 class EditorState {
@@ -17,6 +18,24 @@ class EditorState {
     val layers = mutableStateListOf<Layer>()
     var selectedLayer by mutableStateOf<Layer?>(null)
         private set
+
+    var zoom by mutableFloatStateOf(1f)
+        internal set
+    var panOffset by mutableStateOf(Offset.Zero)
+        internal set
+
+    fun resetView() {
+        zoom = 1f
+        panOffset = Offset.Zero
+    }
+
+    fun zoomIn() {
+        zoom = (zoom * 1.25f).coerceAtMost(5f)
+    }
+
+    fun zoomOut() {
+        zoom = (zoom / 1.25f).coerceAtLeast(0.2f)
+    }
 
     fun selectLayer(layer: Layer?) {
         selectedLayer = layer

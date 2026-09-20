@@ -8,6 +8,8 @@ import androidx.compose.animation.slideOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +42,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -59,6 +62,7 @@ import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -68,14 +72,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.window.core.layout.WindowSizeClass
+import coil3.compose.AsyncImagePainter.State.Empty.painter
 import com.mrboomdev.boomeditor.EditorState
 import com.mrboomdev.boomeditor.R
 import com.mrboomdev.boomeditor.canvas.EditorCanvas
@@ -193,7 +205,7 @@ fun AppScreen(
                     ),
 
                     MainAction(
-                        text = "Resize canvas",
+                        text = "Export",
                         icon = R.drawable.ios_share_24px,
                         action = {}
                     )
@@ -228,6 +240,7 @@ fun AppScreen(
                 Column(
                     modifier = Modifier
                         .background(MaterialTheme.colorScheme.surface)
+                        .verticalScroll(rememberScrollState())
                         .padding(
                             WindowInsets.safeDrawing.only(
                                 WindowInsetsSides.Left + WindowInsetsSides.Vertical
@@ -316,6 +329,76 @@ fun AppScreen(
                                     }
                                 }
                             }
+                        }
+                    }
+                    
+                    Column(
+                        modifier = Modifier
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(32.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainer)
+                    ) {
+                        TextButton(
+                            shape = RoundedCornerShape(8.dp),
+                            onClick = { editorState.zoomIn() }
+                        ) { 
+                            Icon(
+                                painter = painterResource(R.drawable.zoom_in_24px),
+                                contentDescription = null
+                            )
+                        }
+
+                        TextButton(
+                            shape = RoundedCornerShape(8.dp),
+                            onClick = { editorState.zoomOut() }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.zoom_out_24px),
+                                contentDescription = null
+                            )
+                        }
+
+                        TextButton(
+                            shape = RoundedCornerShape(8.dp),
+                            onClick = { editorState.resetView() }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.youtube_searched_for_24px),
+                                contentDescription = null
+                            )
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(32.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainer)
+                    ) {
+                        TextButton(
+                            shape = RoundedCornerShape(8.dp),
+                            enabled = false,
+                            onClick = {
+
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.undo_24px),
+                                contentDescription = null
+                            )
+                        }
+
+                        TextButton(
+                            shape = RoundedCornerShape(8.dp),
+                            enabled = false,
+                            onClick = {
+
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.redo_24px),
+                                contentDescription = null
+                            )
                         }
                     }
                 }
@@ -576,111 +659,13 @@ fun AppScreen(
             exit = slideOut { IntOffset(it.width, 0) },
             modifier = Modifier.align(Alignment.CenterEnd)
         ) {
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(32.dp, 0.dp, 0.dp, 32.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { editorState.selectLayer(null) }
-                    .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(start = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .height(64.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                alpha = 0.25f
-                            )
-                        )
-                )
-
-                LazyColumn(
-                    modifier = Modifier
-                        .width(256.dp)
-                        .fillMaxHeight(),
-                    contentPadding = WindowInsets.safeDrawing.only(
-                        WindowInsetsSides.Right + WindowInsetsSides.Vertical
-                    ).asPaddingValues().plus(PaddingValues(
-                        top = 8.dp, end = 8.dp, bottom = 8.dp
-                    )),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    itemsIndexed(
-                        items = editorState.layers
-                    ) { index, layer ->
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            
-                            color = if(layer == editorState.selectedLayer) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else MaterialTheme.colorScheme.surface,
-                            
-                            onClick = {
-                                editorState.selectLayer(layer)
-                            }
-                        ) { 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Canvas(
-                                    modifier = Modifier
-                                        .background(Color.White)
-                                        .height(48.dp)
-                                        .aspectRatio(1f)
-                                        .clipToBounds()
-                                ) {
-                                    scale(0.1f) {
-                                        layer.draw(this)
-                                    }
-                                }
-                                
-                                Text(
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    text = "Layer #${index + 1}"
-                                )
-                                
-                                IconButton(
-                                    onClick = {
-                                        layer.visible = !layer.visible
-                                    }
-                                ) { 
-                                    Icon(
-                                        modifier = Modifier.size(20.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                                        contentDescription = null,
-                                        painter = painterResource(if(layer.visible) {
-                                            R.drawable.visibility_24px
-                                        } else R.drawable.visibility_off_24px)
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = {
-                                        editorState.layers.remove(layer)
-                                    }
-                                ) {
-                                    Icon(
-                                        modifier = Modifier.size(20.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                                        painter = painterResource(R.drawable.delete_24px),
-                                        contentDescription = null
-                                    )
-                                }
-                            }
-                        }
-                    }
+            LayersPanel(
+                editorState = editorState,
+                onDismiss = {
+                    showLayersPanel = false
+                    editorState.selectLayer(null)
                 }
-            }
+            )
         }
     }
 }
@@ -693,5 +678,225 @@ private fun AppScreenPreview() {
     
     BoomEditorTheme {
         AppScreen(editorState)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LayersPanel(
+    editorState: EditorState,
+    onDismiss: () -> Unit
+) {
+    var draggedLayerId by remember { mutableIntStateOf(-1) }
+    var dragOffsetY by remember { mutableStateOf(0f) }
+    var swipeOffsetX by remember { mutableStateOf(0f) }
+    val swipeDismissThreshold = 120f
+
+    Row(
+        modifier = Modifier
+            .graphicsLayer {
+                translationX = swipeOffsetX
+            }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (swipeOffsetX > swipeDismissThreshold) {
+                            onDismiss()
+                        }
+                        swipeOffsetX = 0f
+                    },
+                    onDragCancel = {
+                        swipeOffsetX = 0f
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        swipeOffsetX = (swipeOffsetX + dragAmount).coerceAtLeast(0f)
+                    }
+                )
+            }
+            .clip(RoundedCornerShape(32.dp, 0.dp, 0.dp, 32.dp))
+            .fillMaxHeight()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(start = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(32.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                        alpha = 0.25f
+                    )
+                )
+        )
+
+        LazyColumn(
+            modifier = Modifier
+                .width(256.dp)
+                .fillMaxHeight(),
+            contentPadding = WindowInsets.safeDrawing.only(
+                WindowInsetsSides.Right + WindowInsetsSides.Vertical
+            ).asPaddingValues().plus(PaddingValues(
+                top = 8.dp, end = 8.dp, bottom = 8.dp
+            )),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            itemsIndexed(
+                items = editorState.layers,
+                key = { _, layer -> layer.id }
+            ) { index, layer ->
+                val isDragged = draggedLayerId == layer.id
+                val itemHeight = 64f
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+
+                    color = if(layer == editorState.selectedLayer) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else MaterialTheme.colorScheme.surface,
+
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateItem()
+                        .then(
+                            if(isDragged) {
+                                Modifier.graphicsLayer {
+                                    translationY = dragOffsetY
+                                    scaleX = 1.03f
+                                    scaleY = 1.03f
+                                    alpha = 0.9f
+                                }
+                            } else Modifier
+                        )
+                        .pointerInput(layer.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    draggedLayerId = layer.id
+                                    dragOffsetY = 0f
+                                },
+                                onDragEnd = {
+                                    draggedLayerId = -1
+                                    dragOffsetY = 0f
+                                },
+                                onDragCancel = {
+                                    draggedLayerId = -1
+                                    dragOffsetY = 0f
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragOffsetY += dragAmount.y
+
+                                    val fromId = draggedLayerId
+                                    if(fromId < 0) return@detectDragGesturesAfterLongPress
+
+                                    val fromIndex = editorState.layers.indexOfFirst { it.id == fromId }
+                                    if(fromIndex < 0) return@detectDragGesturesAfterLongPress
+
+                                    val swapThreshold = itemHeight / 2f
+                                    val displacement = (dragOffsetY / swapThreshold).roundToInt()
+                                    val targetIndex = (fromIndex + displacement).coerceIn(0, editorState.layers.lastIndex)
+
+                                    if(targetIndex != fromIndex) {
+                                        editorState.layers.add(fromIndex, editorState.layers.removeAt(targetIndex))
+                                        dragOffsetY = 0f
+                                    }
+                                }
+                            )
+                        },
+                    onClick = {
+                        editorState.selectLayer(layer)
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.drag_indicator_24px),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = 0.25f
+                            ),
+                        )
+
+                        LayerThumbnail(
+                            layer = layer,
+                            modifier = Modifier
+                                .padding(start = 4.dp)
+                                .size(48.dp)
+                        )
+
+                        Text(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 8.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            text = "Layer #${index + 1}"
+                        )
+
+                        IconButton(
+                            onClick = {
+                                layer.toggleVisible()
+                            }
+                        ) {
+                            Icon(
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                                contentDescription = null,
+                                painter = painterResource(if(layer.visible) {
+                                    R.drawable.visibility_24px
+                                } else R.drawable.visibility_off_24px)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                editorState.layers.remove(layer)
+                            }
+                        ) {
+                            Icon(
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                                painter = painterResource(R.drawable.delete_24px),
+                                contentDescription = null
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LayerThumbnail(
+    layer: com.mrboomdev.boomeditor.canvas.layer.Layer,
+    modifier: Modifier = Modifier
+) {
+    val canvasWidth = layer.width
+    val canvasHeight = layer.height
+
+    Canvas(
+        modifier = modifier
+            .background(Color.White, RoundedCornerShape(4.dp))
+            .clipToBounds()
+    ) {
+        val scale = if (canvasWidth > 0f && canvasHeight > 0f) {
+            minOf(size.width / canvasWidth, size.height / canvasHeight)
+        } else 0.1f
+
+        val offsetX = (size.width - canvasWidth * scale) / 2f
+        val offsetY = (size.height - canvasHeight * scale) / 2f
+
+        drawIntoCanvas { canvas ->
+            canvas.save()
+            canvas.translate(offsetX, offsetY)
+            scale(scale, pivot = Offset.Zero) {
+                layer.draw(this)
+            }
+            canvas.restore()
+        }
     }
 }
