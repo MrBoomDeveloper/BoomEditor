@@ -1,14 +1,11 @@
 package com.mrboomdev.boomeditor.ui
 
-import android.R.attr.textStyle
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -16,11 +13,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
@@ -32,59 +27,51 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextFieldDefaults.contentPadding
 import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
-import androidx.window.core.layout.WindowWidthSizeClass
-import com.mrboomdev.boomeditor.AppState
+import com.mrboomdev.boomeditor.EditorState
 import com.mrboomdev.boomeditor.R
+import com.mrboomdev.boomeditor.canvas.EditorCanvas
+import com.mrboomdev.boomeditor.canvas.layer.ImageLayer
 import com.mrboomdev.boomeditor.canvas.layer.Layer
 import com.mrboomdev.boomeditor.ui.components.PillShapedTabBar
 import com.mrboomdev.boomeditor.ui.components.ToolButton
-import kotlinx.coroutines.coroutineScope
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.compose.util.toImageBitmap
+import io.github.vinceglb.filekit.dialogs.openFilePicker
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppScreen(
-    appState: AppState,
+    editorState: EditorState,
 ) {
     val coroutineScope = rememberCoroutineScope()
     val windowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass
@@ -109,39 +96,83 @@ fun AppScreen(
                 dropdown = listOf(
                     MainAction(
                         text = "Image",
-                        icon = R.drawable.image_24px
+                        icon = R.drawable.image_24px,
+                        action = {
+                            coroutineScope.launch {
+                                val imageFile = FileKit.openFilePicker(type = FileKitType.Image) ?: return@launch
+                                val bitmap = imageFile.toImageBitmap()
+                                editorState.layers.add(ImageLayer(
+                                    x = 50f,
+                                    y = 50f,
+                                    rotate = 0f,
+                                    width = bitmap.width.toFloat(),
+                                    height = bitmap.height.toFloat(),
+                                    bitmap = bitmap
+                                ))
+                            }
+                        }
                     ),
 
                     MainAction(
                         text = "Shape",
-                        icon = R.drawable.circle_24px
+                        icon = R.drawable.circle_24px,
+                        action = {}
                     ),
 
                     MainAction(
                         text = "Draw",
-                        icon = R.drawable.brush_24px
+                        icon = R.drawable.brush_24px,
+                        action = {}
                     ),
 
                     MainAction(
                         text = "Text",
-                        icon = R.drawable.format_size_24px
+                        icon = R.drawable.format_size_24px,
+                        action = {}
                     )
                 )
             ),
 
             MainAction(
                 text = "Grid",
-                icon = R.drawable.grid_3x3_24px
+                icon = R.drawable.grid_3x3_24px,
+                action = {}
             ),
 
             MainAction(
                 text = "Layers",
-                icon = R.drawable.layers_24px
+                icon = R.drawable.layers_24px,
+                action = {}
             ),
 
             MainAction(
                 text = "More",
-                icon = R.drawable.more_vert_24px
+                icon = R.drawable.more_vert_24px,
+                dropdown = listOf(
+                    MainAction(
+                        text = "Save project",
+                        icon = R.drawable.save_24px,
+                        action = {}
+                    ),
+
+                    MainAction(
+                        text = "Open project",
+                        icon = R.drawable.folder_open_24px,
+                        action = {}
+                    ),
+
+                    MainAction(
+                        text = "Resize canvas",
+                        icon = R.drawable.crop_24px,
+                        action = {}
+                    ),
+
+                    MainAction(
+                        text = "Resize canvas",
+                        icon = R.drawable.ios_share_24px,
+                        action = {}
+                    )
+                )
             )
         )
     }
@@ -158,7 +189,15 @@ fun AppScreen(
         )
     }
     
-    Box(Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.background)
+            .fillMaxSize()
+    ) {
+        EditorCanvas(
+            state = editorState
+        )
+        
         Row {
             if(windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)) {
                 Column(
@@ -168,8 +207,13 @@ fun AppScreen(
                             WindowInsetsSides.Left + WindowInsetsSides.Vertical
                         ).asPaddingValues())
                         .fillMaxHeight()
+                        .onGloballyPositioned {
+                            editorState.maxUiInsets.left.floatValue = it.boundsInRoot().right
+                        }
                 ) {
                     for(action in mainActions) {
+                        var open by remember { mutableStateOf(false) }
+                        
                         TooltipBox(
                             state = rememberTooltipState(),
                             positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Right),
@@ -185,13 +229,60 @@ fun AppScreen(
                                     if(action.action != null) {
                                         action.action()
                                         return@TextButton
+                                    } 
+                                    
+                                    if(action.dropdown != null) {
+                                        open = true
+                                        return@TextButton
                                     }
+                                    
+                                    throw UnsupportedOperationException("Unsupported MainAction!")
                                 }
                             ) {
                                 Icon(
                                     painter = painterResource(action.icon),
                                     contentDescription = null
                                 )
+                            }
+
+                            if(action.dropdown != null) {
+                                DropdownMenu(
+                                    expanded = open,
+                                    onDismissRequest = { open = false },
+                                    modifier = Modifier.widthIn(min = 150.dp),
+                                    shape = RoundedCornerShape(32.dp)
+                                ) {
+                                    for(subAction in action.dropdown) {
+                                        DropdownMenuItem(
+                                            contentPadding = PaddingValues(
+                                                horizontal = 16.dp
+                                            ),
+
+                                            text = {
+                                                Text(subAction.text)
+                                            },
+
+                                            leadingIcon = {
+                                                Icon(
+                                                    painter = painterResource(subAction.icon),
+                                                    contentDescription = null
+                                                )
+                                            },
+
+                                            onClick = {
+                                                open = false
+                                                
+                                                if(subAction.action != null) {
+                                                    subAction.action()
+                                                    return@DropdownMenuItem
+                                                }
+
+                                                throw UnsupportedOperationException("Unsupported sub MainAction!")
+                                                
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -212,8 +303,13 @@ fun AppScreen(
                                 WindowInsetsSides.Horizontal + WindowInsetsSides.Top
                             ).asPaddingValues())
                             .fillMaxWidth()
+                            .onGloballyPositioned {
+                                editorState.maxUiInsets.top.floatValue = it.boundsInRoot().bottom
+                            }
                     ) {
                         for(action in mainActions) {
+                            var open by remember { mutableStateOf(false) }
+                            
                             Box(Modifier.weight(1f)) {
                                 TooltipBox(
                                     state = rememberTooltipState(),
@@ -232,12 +328,59 @@ fun AppScreen(
                                                 action.action()
                                                 return@TextButton
                                             }
+
+                                            if(action.dropdown != null) {
+                                                open = true
+                                                return@TextButton
+                                            }
+
+                                            throw UnsupportedOperationException("Unsupported MainAction!")
                                         }
                                     ) {
                                         Icon(
                                             painter = painterResource(action.icon),
                                             contentDescription = null
                                         )
+                                    }
+
+                                    if(action.dropdown != null) {
+                                        DropdownMenu(
+                                            expanded = open,
+                                            onDismissRequest = { open = false },
+                                            modifier = Modifier.widthIn(min = 150.dp),
+                                            shape = RoundedCornerShape(32.dp)
+                                        ) {
+                                            for(subAction in action.dropdown) {
+                                                DropdownMenuItem(
+                                                    contentPadding = PaddingValues(
+                                                        horizontal = 16.dp
+                                                    ),
+
+                                                    text = {
+                                                        Text(subAction.text)
+                                                    },
+
+                                                    leadingIcon = {
+                                                        Icon(
+                                                            painter = painterResource(subAction.icon),
+                                                            contentDescription = null
+                                                        )
+                                                    },
+
+                                                    onClick = {
+                                                        open = false
+
+                                                        if(subAction.action != null) {
+                                                            subAction.action()
+                                                            return@DropdownMenuItem
+                                                        }
+
+                                                        throw UnsupportedOperationException("Unsupported sub MainAction!")
+
+                                                    }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -247,10 +390,16 @@ fun AppScreen(
                     Column(
                         modifier = Modifier
                             .background(MaterialTheme.colorScheme.surface)
+                            .padding(top = 8.dp)
                             .padding(WindowInsets.safeDrawing.only(
                                 WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
                             ).asPaddingValues())
                             .fillMaxWidth()
+                            .onGloballyPositioned {
+                                val bounds = it.boundsInRoot()
+                                editorState.maxUiInsets.bottom.floatValue = bounds.bottom - bounds.top
+                            },
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         HorizontalPager(
                             state = pagerState,
@@ -310,6 +459,10 @@ fun AppScreen(
                         ).asPaddingValues())
                         .fillMaxHeight()
                         .width(200.dp)
+                        .onGloballyPositioned {
+                            val bounds = it.boundsInRoot()
+                            editorState.maxUiInsets.right.floatValue = bounds.right - bounds.left
+                        }
                 ) {
                     HorizontalPager(
                         modifier = Modifier
@@ -371,9 +524,9 @@ fun AppScreen(
 @Preview(device = "id:pixel_tablet")
 @Composable
 private fun AppScreenPreview() {
-    val appState = remember { AppState() }
+    val editorState = remember { EditorState() }
     
     BoomEditorTheme {
-        AppScreen(appState)
+        AppScreen(editorState)
     }
 }
