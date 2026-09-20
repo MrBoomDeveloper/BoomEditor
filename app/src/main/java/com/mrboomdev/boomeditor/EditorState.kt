@@ -25,11 +25,18 @@ class EditorState {
     fun selectLayerAt(x: Float, y: Float): Boolean {
         // Iterate in reverse order (top-most layer first)
         for (i in layers.indices.reversed()) {
-            if (layers[i].containsPoint(x, y)) {
+            val layer = layers[i]
+            
+            if(!layer.visible) {
+                continue
+            }
+            
+            if (layer.containsPoint(x, y)) {
                 selectedLayer = layers[i]
                 return true
             }
         }
+        
         selectedLayer = null
         return false
     }

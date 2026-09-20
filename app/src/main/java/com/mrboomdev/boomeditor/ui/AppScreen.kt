@@ -1,6 +1,14 @@
 package com.mrboomdev.boomeditor.ui
 
+import android.R.attr.contentDescription
+import android.R.attr.onClick
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideIn
+import androidx.compose.animation.slideOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,30 +17,38 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
@@ -47,12 +63,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.mrboomdev.boomeditor.EditorState
@@ -75,6 +96,7 @@ fun AppScreen(
     val coroutineScope = rememberCoroutineScope()
     val windowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass
     val pagerState = rememberPagerState { 3 }
+    var showLayersPanel by remember { mutableStateOf(false) }
     val tabScrollStates = Array(3) {
         rememberScrollState()
     }
@@ -85,7 +107,9 @@ fun AppScreen(
         }
     }
     
-    val mainActions = remember { 
+    val mainActions = remember(
+        showLayersPanel
+    ) { 
         listOf(
             MainAction(
                 text = "Add",
@@ -139,7 +163,11 @@ fun AppScreen(
             MainAction(
                 text = "Layers",
                 icon = R.drawable.layers_24px,
-                action = {}
+                toggled = showLayersPanel,
+                action = {
+                    showLayersPanel = !showLayersPanel
+                    editorState.selectLayer(null)
+                }
             ),
 
             MainAction(
@@ -200,9 +228,11 @@ fun AppScreen(
                 Column(
                     modifier = Modifier
                         .background(MaterialTheme.colorScheme.surface)
-                        .padding(WindowInsets.safeDrawing.only(
-                            WindowInsetsSides.Left + WindowInsetsSides.Vertical
-                        ).asPaddingValues())
+                        .padding(
+                            WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Left + WindowInsetsSides.Vertical
+                            ).asPaddingValues()
+                        )
                         .fillMaxHeight()
                         .onGloballyPositioned {
                             editorState.maxUiInsets.left.floatValue = it.boundsInRoot().right
@@ -222,6 +252,11 @@ fun AppScreen(
                         ) {
                             TextButton(
                                 shape = RoundedCornerShape(8.dp),
+                                
+                                colors = if(action.toggled) {
+                                    ButtonDefaults.buttonColors()
+                                } else ButtonDefaults.textButtonColors(),
+                                
                                 onClick = {
                                     if(action.action != null) {
                                         action.action()
@@ -296,9 +331,11 @@ fun AppScreen(
                     Row(
                         modifier = Modifier
                             .background(MaterialTheme.colorScheme.surface)
-                            .padding(WindowInsets.safeDrawing.only(
-                                WindowInsetsSides.Horizontal + WindowInsetsSides.Top
-                            ).asPaddingValues())
+                            .padding(
+                                WindowInsets.safeDrawing.only(
+                                    WindowInsetsSides.Horizontal + WindowInsetsSides.Top
+                                ).asPaddingValues()
+                            )
                             .fillMaxWidth()
                             .onGloballyPositioned {
                                 editorState.maxUiInsets.top.floatValue = it.boundsInRoot().bottom
@@ -388,9 +425,11 @@ fun AppScreen(
                         modifier = Modifier
                             .background(MaterialTheme.colorScheme.surface)
                             .padding(top = 8.dp)
-                            .padding(WindowInsets.safeDrawing.only(
-                                WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
-                            ).asPaddingValues())
+                            .padding(
+                                WindowInsets.safeDrawing.only(
+                                    WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal
+                                ).asPaddingValues()
+                            )
                             .fillMaxWidth()
                             .onGloballyPositioned {
                                 val bounds = it.boundsInRoot()
@@ -444,16 +483,31 @@ fun AppScreen(
                     }
                 }   
             } else {
-                Box(Modifier.weight(1f)) {}
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) { 
+                    Row {
+                        // TODO: Add here undo, redo, zoom in and zoom out buttons
+                    }
+                }
             }
             
-            if(windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND)) {
+            AnimatedVisibility(
+                visible = windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) && editorState.selectedLayer != null,
+                enter = slideIn { IntOffset(it.width, 0) },
+                exit = slideOut { IntOffset(it.width, 0) }
+            ) {
                 Column(
                     modifier = Modifier
                         .background(MaterialTheme.colorScheme.surface)
-                        .padding(WindowInsets.safeDrawing.only(
-                            WindowInsetsSides.Right + WindowInsetsSides.Vertical
-                        ).asPaddingValues())
+                        .padding(
+                            WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Right + WindowInsetsSides.Vertical
+                            ).asPaddingValues()
+                        )
                         .fillMaxHeight()
                         .width(200.dp)
                         .onGloballyPositioned {
@@ -512,6 +566,120 @@ fun AppScreen(
                         }
                     )
                 }   
+            }
+        }
+        
+        // Layers panel
+        AnimatedVisibility(
+            visible = showLayersPanel,
+            enter = slideIn { IntOffset(it.width, 0) },
+            exit = slideOut { IntOffset(it.width, 0) },
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(32.dp, 0.dp, 0.dp, 32.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { editorState.selectLayer(null) }
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(start = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .height(64.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(
+                                alpha = 0.25f
+                            )
+                        )
+                )
+
+                LazyColumn(
+                    modifier = Modifier
+                        .width(256.dp)
+                        .fillMaxHeight(),
+                    contentPadding = WindowInsets.safeDrawing.only(
+                        WindowInsetsSides.Right + WindowInsetsSides.Vertical
+                    ).asPaddingValues().plus(PaddingValues(
+                        top = 8.dp, end = 8.dp, bottom = 8.dp
+                    )),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    itemsIndexed(
+                        items = editorState.layers
+                    ) { index, layer ->
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            
+                            color = if(layer == editorState.selectedLayer) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else MaterialTheme.colorScheme.surface,
+                            
+                            onClick = {
+                                editorState.selectLayer(layer)
+                            }
+                        ) { 
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Canvas(
+                                    modifier = Modifier
+                                        .background(Color.White)
+                                        .height(48.dp)
+                                        .aspectRatio(1f)
+                                        .clipToBounds()
+                                ) {
+                                    scale(0.1f) {
+                                        layer.draw(this)
+                                    }
+                                }
+                                
+                                Text(
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    text = "Layer #${index + 1}"
+                                )
+                                
+                                IconButton(
+                                    onClick = {
+                                        layer.visible = !layer.visible
+                                    }
+                                ) { 
+                                    Icon(
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                                        contentDescription = null,
+                                        painter = painterResource(if(layer.visible) {
+                                            R.drawable.visibility_24px
+                                        } else R.drawable.visibility_off_24px)
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        editorState.layers.remove(layer)
+                                    }
+                                ) {
+                                    Icon(
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                                        painter = painterResource(R.drawable.delete_24px),
+                                        contentDescription = null
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

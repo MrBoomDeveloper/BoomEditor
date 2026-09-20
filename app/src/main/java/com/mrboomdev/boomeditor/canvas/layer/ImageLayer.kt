@@ -8,16 +8,18 @@ import androidx.compose.ui.unit.IntSize
 class ImageLayer(
     x: Float,
     y: Float,
-    rotate: Float,
     width: Float,
     height: Float,
-    var bitmap: ImageBitmap
+    var bitmap: ImageBitmap,
+    rotate: Float = 0f,
+    visible: Boolean = true,
 ): Layer(
-    x,
-    y,
-    rotate,
-    width,
-    height
+    x = x,
+    y = y,
+    width = width,
+    height = height,
+    rotate = rotate,
+    visible = visible
 ) {
     override fun draw(drawScope: DrawScope) {
         drawScope.drawImage(

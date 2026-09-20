@@ -138,12 +138,16 @@ fun EditorCanvas(state: EditorState) {
 
             // Draw layers
             for (layer in state.layers) {
+                if(!layer.visible) {
+                    continue
+                }
+                
                 layer.draw(this)
             }
 
             // Draw animated marching-ants selection border
             val selected = state.selectedLayer
-            if (selected != null && selected in state.layers) {
+            if (selected != null && selected.visible && selected in state.layers) {
                 drawMarchingAnts(selected, borderPhase)
             }
         }

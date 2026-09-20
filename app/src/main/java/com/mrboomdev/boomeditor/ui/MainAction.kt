@@ -6,5 +6,6 @@ data class MainAction(
     val text: String,
     @DrawableRes val icon: Int,
     val action: (() -> Unit)? = null,
-    val dropdown: List<MainAction>? = null
+    val dropdown: List<MainAction>? = null,
+    val toggled: Boolean = false,
 )
