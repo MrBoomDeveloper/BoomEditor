@@ -2,6 +2,7 @@ package com.mrboomdev.boomeditor.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,14 +24,16 @@ import com.mrboomdev.boomeditor.ui.BoomEditorTheme
 
 @Composable
 fun ToolButton(
+    modifier: Modifier = Modifier,
     icon: Painter,
     title: String,
     onClick: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier
-            .width(72.dp)
-            .height(56.dp),
+        modifier = modifier.defaultMinSize(
+            minWidth = 72.dp, 
+            minHeight = 64.dp
+        ),
         color = MaterialTheme.colorScheme.surfaceContainer,
         shape = RoundedCornerShape(16.dp),
         onClick = onClick,

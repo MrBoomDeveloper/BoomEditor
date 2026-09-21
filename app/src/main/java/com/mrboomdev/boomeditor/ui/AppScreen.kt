@@ -1,36 +1,14 @@
 package com.mrboomdev.boomeditor.ui
 
-import android.R.attr.contentDescription
-import android.R.attr.onClick
+import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideIn
 import androidx.compose.animation.slideOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.plus
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -43,51 +21,35 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
-import androidx.compose.material3.rememberTooltipState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
+import androidx.compose.ui.window.Dialog
+import androidx.core.graphics.createBitmap
 import androidx.window.core.layout.WindowSizeClass
-import coil3.compose.AsyncImagePainter.State.Empty.painter
 import com.mrboomdev.boomeditor.EditorState
 import com.mrboomdev.boomeditor.R
 import com.mrboomdev.boomeditor.canvas.EditorCanvas
@@ -99,6 +61,7 @@ import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.util.toImageBitmap
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,9 +69,13 @@ fun AppScreen(
     editorState: EditorState,
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val context = LocalContext.current
     val windowSizeClass = currentWindowAdaptiveInfoV2().windowSizeClass
     val pagerState = rememberPagerState { 3 }
     var showLayersPanel by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
     val tabScrollStates = Array(3) {
         rememberScrollState()
     }
@@ -125,7 +92,7 @@ fun AppScreen(
         listOf(
             MainAction(
                 text = "Add",
-                icon = R.drawable.add_2_24px,
+                icon = R.drawable.add_24px,
                 dropdown = listOf(
                     MainAction(
                         text = "Image",
@@ -134,14 +101,17 @@ fun AppScreen(
                             coroutineScope.launch {
                                 val imageFile = FileKit.openFilePicker(type = FileKitType.Image) ?: return@launch
                                 val bitmap = imageFile.toImageBitmap()
-                                editorState.layers.add(ImageLayer(
+                                val layer = ImageLayer(
                                     x = 50f,
                                     y = 50f,
                                     rotate = 0f,
                                     width = bitmap.width.toFloat(),
                                     height = bitmap.height.toFloat(),
                                     bitmap = bitmap
-                                ))
+                                )
+                                
+                                editorState.layers.add(layer)
+                                editorState.selectLayer(layer)
                             }
                         }
                     ),
@@ -207,7 +177,9 @@ fun AppScreen(
                     MainAction(
                         text = "Export",
                         icon = R.drawable.ios_share_24px,
-                        action = {}
+                        action = {
+                            showExportDialog = true
+                        }
                     )
                 )
             )
@@ -240,13 +212,13 @@ fun AppScreen(
                 Column(
                     modifier = Modifier
                         .background(MaterialTheme.colorScheme.surface)
+                        .fillMaxHeight()
                         .verticalScroll(rememberScrollState())
                         .padding(
                             WindowInsets.safeDrawing.only(
                                 WindowInsetsSides.Left + WindowInsetsSides.Vertical
                             ).asPaddingValues()
                         )
-                        .fillMaxHeight()
                         .onGloballyPositioned {
                             editorState.maxUiInsets.left.floatValue = it.boundsInRoot().right
                         }
@@ -334,7 +306,7 @@ fun AppScreen(
                     
                     Column(
                         modifier = Modifier
-                            .padding(vertical = 4.dp)
+                            .padding(vertical = 2.dp)
                             .clip(RoundedCornerShape(32.dp))
                             .background(MaterialTheme.colorScheme.surfaceContainer)
                     ) {
@@ -371,7 +343,7 @@ fun AppScreen(
 
                     Column(
                         modifier = Modifier
-                            .padding(vertical = 4.dp)
+                            .padding(vertical = 2.dp)
                             .clip(RoundedCornerShape(32.dp))
                             .background(MaterialTheme.colorScheme.surfaceContainer)
                     ) {
@@ -610,13 +582,14 @@ fun AppScreen(
                             contentPadding = PaddingValues(horizontal = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
-                            columns = GridCells.Adaptive(48.dp),
+                            columns = GridCells.Adaptive(72.dp),
                         ) {
                             items(
                                 items = toolActions,
                                 key = { it.second }
                             ) { tool ->
                                 ToolButton(
+                                    modifier = Modifier.fillMaxWidth(),
                                     icon = painterResource(tool.first),
                                     title = tool.second,
                                     onClick = {}
@@ -668,6 +641,164 @@ fun AppScreen(
             )
         }
     }
+    
+    if(showExportDialog) {
+        val fileTypes = remember { 
+            listOf(
+                ".png",
+                ".jpg",
+                ".webp"
+            )
+        }
+        
+        var expand by remember { mutableStateOf(false) }
+        var selectedFileType by remember { mutableStateOf(fileTypes[0]) }
+        var isExportInProgress by remember { mutableStateOf(false) }
+        
+        if(isExportInProgress) {
+            Dialog(onDismissRequest = {}) {
+                CircularProgressIndicator()
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { showExportDialog = false },
+            title = { Text("Export image") },
+            
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.secondary,
+                        text = "File type"
+                    )
+
+                    ExposedDropdownMenuBox(
+                        expanded = expand,
+                        onExpandedChange = { expand = it }
+                    ) {
+                        TextField(
+                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                            textStyle = MaterialTheme.typography.labelLarge,
+                            readOnly = true,
+                            value = selectedFileType,
+                            onValueChange = {}
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = expand,
+                            onDismissRequest = { expand = false }
+                        ) {
+                            for(fileType in fileTypes) {
+                                DropdownMenuItem(
+                                    text = { Text(fileType) },
+                                    onClick = {
+                                        selectedFileType = fileType
+                                        expand = false
+                                    }
+                                )
+                            }
+                        }
+                    }   
+                    
+                    // TODO: Add export quality setting
+                }
+            },                    confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            isExportInProgress = true
+                            
+                            val canvasWidth = editorState.canvasWidth.intValue
+                            val canvasHeight = editorState.canvasHeight.intValue
+                            val imageBitmap = createBitmap(canvasWidth, canvasHeight).asImageBitmap()
+                            val canvas = androidx.compose.ui.graphics.Canvas(imageBitmap)
+
+                            val canvasDrawScope = CanvasDrawScope()
+                            val drawSize = Size(
+                                canvasWidth.toFloat(),
+                                canvasHeight.toFloat()
+                            )
+
+                            canvasDrawScope.draw(
+                                density = density,
+                                layoutDirection = layoutDirection,
+                                canvas = canvas,
+                                size = drawSize
+                            ) {
+                                // Draw all visible layers
+                                for (layer in editorState.layers) {
+                                    if (layer.visible) {
+                                        layer.draw(this)
+                                    }
+                                }
+                            }
+
+                            // Compress
+                            val androidBitmap = imageBitmap.asAndroidBitmap()
+                            
+                            val (compressFormat, mimeType) = when(selectedFileType) {
+                                ".jpg" -> Bitmap.CompressFormat.JPEG to "image/jpeg"
+                                ".webp" -> Bitmap.CompressFormat.WEBP_LOSSLESS to "image/webp"
+                                else -> Bitmap.CompressFormat.PNG to "image/png"
+                            }
+
+                            val outputStream = java.io.ByteArrayOutputStream()
+                            androidBitmap.compress(compressFormat, 100, outputStream)
+                            val imageBytes = outputStream.toByteArray()
+
+                            // Save via MediaStore
+                            val resolver = context.contentResolver
+                            val contentValues = android.content.ContentValues().apply {
+                                put(
+                                    android.provider.MediaStore.MediaColumns.DISPLAY_NAME,
+                                    "BoomEditor_${System.currentTimeMillis()}${selectedFileType}"
+                                )
+                                
+                                put(
+                                    android.provider.MediaStore.MediaColumns.MIME_TYPE,
+                                    mimeType
+                                )
+                                
+                                put(
+                                    android.provider.MediaStore.MediaColumns.RELATIVE_PATH,
+                                    android.os.Environment.DIRECTORY_PICTURES
+                                )
+                            }
+                            
+                            val imageUri = resolver.insert(
+                                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                contentValues
+                            )
+                            
+                            if (imageUri != null) {
+                                resolver.openOutputStream(imageUri)?.use { stream ->
+                                    stream.write(imageBytes)
+                                }
+                            }
+
+                            isExportInProgress = false
+                            showExportDialog = false
+                        }
+                    }
+                ) { 
+                    Text("Export")
+                }
+            },
+            
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showExportDialog = false
+                    }
+                ) { 
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Preview
@@ -681,15 +812,14 @@ private fun AppScreenPreview() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LayersPanel(
     editorState: EditorState,
     onDismiss: () -> Unit
 ) {
     var draggedLayerId by remember { mutableIntStateOf(-1) }
-    var dragOffsetY by remember { mutableStateOf(0f) }
-    var swipeOffsetX by remember { mutableStateOf(0f) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var swipeOffsetX by remember { mutableFloatStateOf(0f) }
     val swipeDismissThreshold = 120f
 
     Row(
