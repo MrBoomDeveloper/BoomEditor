@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -44,6 +45,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontVariation.weight
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -54,6 +57,9 @@ import com.mrboomdev.boomeditor.EditorState
 import com.mrboomdev.boomeditor.R
 import com.mrboomdev.boomeditor.canvas.EditorCanvas
 import com.mrboomdev.boomeditor.canvas.layer.ImageLayer
+import com.mrboomdev.boomeditor.canvas.tools.OpacityTool
+import com.mrboomdev.boomeditor.canvas.tools.Tool
+import com.mrboomdev.boomeditor.ui.components.InfiniteRulerSlider
 import com.mrboomdev.boomeditor.ui.components.PillShapedTabBar
 import com.mrboomdev.boomeditor.ui.components.ToolButton
 import io.github.vinceglb.filekit.FileKit
@@ -61,6 +67,8 @@ import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.util.toImageBitmap
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import kotlinx.coroutines.launch
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,6 +84,7 @@ fun AppScreen(
     val pagerState = rememberPagerState { 3 }
     var showLayersPanel by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
+    var selectedTool by remember { mutableStateOf<Tool?>(null) }
     val tabScrollStates = Array(3) {
         rememberScrollState()
     }
@@ -148,6 +157,7 @@ fun AppScreen(
                 toggled = showLayersPanel,
                 action = {
                     showLayersPanel = !showLayersPanel
+                    selectedTool = null
                     editorState.selectLayer(null)
                 }
             ),
@@ -188,13 +198,15 @@ fun AppScreen(
     
     val toolActions = remember { 
         listOf(
-            R.drawable.crop_24px to "Crop",
-            R.drawable.recenter_24px to "Position",
-            R.drawable.cached_24px to "Rotate",
-            R.drawable.arrows_outward_24px to "Scale",
-            R.drawable.colors_24px to "Color",
-            R.drawable.texture_24px to "Texture",
-            R.drawable.opacity_24px to "Opacity"
+            Triple(R.drawable.crop_24px, "Crop") {},
+            Triple(R.drawable.recenter_24px, "Position") {},
+            Triple(R.drawable.cached_24px, "Rotate") {},
+            Triple(R.drawable.arrows_outward_24px, "Scale") {},
+            Triple(R.drawable.colors_24px, "Color") {},
+            Triple(R.drawable.texture_24px, "Texture") {},
+            Triple(R.drawable.opacity_24px, "Opacity") {
+                selectedTool = OpacityTool
+            }
         )
     }
     
@@ -551,7 +563,7 @@ fun AppScreen(
             }
             
             AnimatedVisibility(
-                visible = windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) && editorState.selectedLayer != null,
+                visible = windowSizeClass.isWidthAtLeastBreakpoint(WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND) && editorState.selectedLayer != null && selectedTool == null,
                 enter = slideIn { IntOffset(it.width, 0) },
                 exit = slideOut { IntOffset(it.width, 0) }
             ) {
@@ -592,7 +604,9 @@ fun AppScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     icon = painterResource(tool.first),
                                     title = tool.second,
-                                    onClick = {}
+                                    onClick = {
+                                        tool.third()
+                                    }
                                 )
                             }
                         }
@@ -639,6 +653,98 @@ fun AppScreen(
                     editorState.selectLayer(null)
                 }
             )
+        }
+
+        // Tool panel
+        AnimatedVisibility(
+            visible = selectedTool != null,
+            enter = slideIn { IntOffset(it.width, 0) },
+            exit = slideOut { IntOffset(it.width, 0) },
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp, 0.dp, 0.dp, 16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(250.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(WindowInsets.safeDrawing.only(
+                            WindowInsetsSides.Vertical + WindowInsetsSides.Right
+                        ).asPaddingValues())
+                ) {
+                    Row {
+                        IconButton(
+                            onClick = {
+                                selectedTool = null
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.close_24px),
+                                contentDescription = null
+                            )
+                        }
+
+                        Text(
+                            modifier = Modifier.align(Alignment.CenterVertically),
+                            style = MaterialTheme.typography.titleMedium,
+                            text = selectedTool?.title ?: "No tool selected"
+                        )
+                    }
+
+                    var width by remember { mutableFloatStateOf(100f) }
+
+                    Row(
+                        modifier = Modifier.padding(start = 16.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            modifier = Modifier.weight(1f),
+                            text = "${width.toInt()}%",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                        
+                        IconButton(
+                            modifier = Modifier.size(32.dp),
+                            onClick = {
+                                width = max(0f, width - 1f)
+                            }
+                        ) { 
+                            Icon(
+                                painter = painterResource(R.drawable.remove_24px),
+                                tint = MaterialTheme.colorScheme.secondary,
+                                contentDescription = null
+                            )
+                        }
+
+                        IconButton(
+                            modifier = Modifier.size(32.dp),
+                            onClick = {
+                                width = min(100f, width + 1f)
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.add_24px),
+                                tint = MaterialTheme.colorScheme.secondary,
+                                contentDescription = null
+                            )
+                        }
+                    }
+
+                    // Infinite width (min 0, no max limit)
+                    InfiniteRulerSlider(
+                        value = width,
+                        onValueChange = { width = it },
+                        minValue = 0f,
+                        maxValue = 100f,
+                        stepValue = 1f
+                    )
+                }
+            }
         }
     }
     
